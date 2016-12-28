@@ -1,0 +1,30 @@
+Click on "Earth Shrine - Entrance"
+Wait ~2 seconds   <-- Wait for "Next" to appear
+Check for "No Energy"
+If no energy
+   Click "Yes" button to refill
+   Wait ~4 seconds   <-- Wait for "Next" to appear
+Click "Next"
+Wait ~3-4 seconds    <-- Wait for "Depart without companion" to appear
+Click "Depart without companion"
+Wait ~2-3 seconds    <-- Wait for "Depart" to appear
+Click "Depart"
+Wait ~5-6 seconds    <-- Wait for bottom bar w/ Auto, Repeat, etc to appear
+If steal
+   Drag left "zidane" to right
+   Drag right skill bar to bottom
+   Click Steal
+   Wait ~1 second
+Click "Auto"
+Wait 1-2 seconds
+Click "Auto"
+Wait ~7 seconds
+Click "Repeat"
+Wait ~15 seconds  <-- Wait for "Next" to appear
+Click "Next"
+Wait ~1-2 seconds
+Click anywhere
+Wait ~3 seconds   <-- Wait for "Next" to appear
+Click "Next"
+Wait ~3 seconds   <-- Wait for "Earth Shrine -- Entrance" to appear
+Repeat
