@@ -217,7 +217,6 @@ do
                then
                   clickLastImg( 2 )
                else
-                  do_steal = false
                   waitTime = 0
                   keyevent( 4 )
 
@@ -228,7 +227,6 @@ do
                end
             else
                -- Couldn't find knob. Stop stealing and go back to return to main battle screen
-               do_steal = false
                waitTime = 0
                keyevent( 4 )     -- 'Back' key will close the Zidane skills menu
 
@@ -240,7 +238,6 @@ do
             
          else
             -- Failed to get zidane image. Stop trying to steal
-            do_steal = false
             waitTime = 0
 
             if do_logging
