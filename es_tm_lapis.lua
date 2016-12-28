@@ -237,7 +237,7 @@ do
          local x1, y1 = getRandomXY()
          local x2, y2 = getRandomXY()
          click( Location( x1, y1 ) )   -- Auto on
-         os.execute( "sleep " .. tonumber( 2 ) )
+         wait( 2 )
          click( Location( x2, y2 ) )   -- Auto off
          waitTime = 8
 
@@ -254,7 +254,7 @@ do
    end   -- running and get 'auto.png'
 
    -- Wait for the second round
-   if running then os.execute( "sleep " .. tonumber(waitTime) ) end
+   if running then wait( waitTime ) end
    waitTime = 0
 
    -- Click 'Repeat' (in-battle, second round)
@@ -274,7 +274,7 @@ do
    end
 
    -- Wait for next screen (no button to wait for)
-   if running then os.execute( "sleep " .. tonumber( waitTime ) ) end
+   if running then wait( waitTime ) end
 
    -- Click anywhere (Results screen 2; character exp, tm, lb)
    if running
