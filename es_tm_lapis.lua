@@ -108,6 +108,10 @@ do
       clickLastImg( 2 )
    else
       running = false
+      if do_logging
+      then
+         io.write( "Unable to find es_entrance button\n" )
+      end
    end
 
    -- Check for "No Energy" (refill popup)
@@ -118,6 +122,10 @@ do
          clickLastImg( 4 )
       else
          running = false
+         if do_logging
+         then
+            io.write( "Out of energy and not using lapis. Quitting script.\n" )
+         end
       end
       -- No 'else failure' here. We could just not need to refill energy
    end
@@ -128,6 +136,10 @@ do
       clickLastImg( 4 )
    else
       running = false
+      if do_logging
+      then
+         io.write( "Unable to find Next button\n" )
+      end
    end
 
    -- Check for "Depart without companion" button (friend select screen)
@@ -136,6 +148,10 @@ do
       clickLastImg( 2 )
    else
       running = false
+      if do_logging
+      then
+         io.write( "Unable to find no companions button\n" )
+      end
    end
 
    -- Check for "Depart" button (team selection screen)
@@ -144,6 +160,10 @@ do
       clickLastImg( 7 )
    else
       running = false
+      if do_logging
+      then
+         io.write( "Unable to find Depart button\n" )
+      end
    end
 
    -- Check for "Auto" button (in-battle screen)
@@ -195,7 +215,7 @@ do
                -- Click the steal ability
                if waitForImg( "steal.png", 1 )
                then
-                  clickLastImg( 1 )
+                  clickLastImg( 2 )
                else
                   do_steal = false
                   waitTime = 0
@@ -248,9 +268,17 @@ do
          end
       else
          running = false
+         if do_logging
+         then
+            io.write( "Unable to find Auto button\n" )
+         end
       end
    else
       running = false
+      if do_logging
+      then
+         io.write( "Unable to find Auto button\n" )
+      end
    end   -- running and get 'auto.png'
 
    -- Wait for the second round
@@ -263,6 +291,10 @@ do
       clickLastImg( 20 )
    else
       running = false
+      if do_logging
+      then
+         io.write( "Unable to find Repeat button\n" )
+      end
    end
 
    -- Wait for "Next" button (Results screen 1; exp, gil, rank)
@@ -271,6 +303,10 @@ do
       clickLastImg( 3 )
    else
       running = false
+      if do_running
+      then
+         io.write( "Unable to find Next button\n" )
+      end
    end
 
    -- Wait for next screen (no button to wait for)
@@ -297,6 +333,10 @@ do
       clickLastImg( 0 )
    else
       running = false
+      if do_logging
+      then
+         io.write( "Unable to find Next button\n" )
+      end
    end
 
    if do_logging
