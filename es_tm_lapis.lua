@@ -46,12 +46,30 @@ end
 
 -- ======== Wait for given image to appear ==========
 function waitForImg( img, waitTime )
-   jitter = 0
-   if transition_jitter and waitTime > 0 then
-      jitter = math.random() * 3
+   local jitter = 0
+   local trials = 3
+   local matched = nil
+   while not matched and trials > 0
+   do
+      if transition_jitter and waitTime > 0 then
+         jitter = math.random() * 2
+      end
+      
+      matched = exists( img, waitTime + jitter )
+      trials = trials - 1
    end
 
-   return exists( img, waitTime + jitter )
+   if do_logging
+   then
+      if matched
+      then
+         io.write( string.format( "Found %s in %d tries\n", img, 3 - trials ) )
+      else
+         io.write( string.format( "Failed to find %s\n", img ) )
+      end
+   end
+
+   return matched
 end
 
 -- ========= Get randomized X-Y coords of last match (for clicking) ========
@@ -175,13 +193,13 @@ do
                end
 
                -- Click the steal ability
-               if waitForImg( "steal.png", 0.5 )
+               if waitForImg( "steal.png", 1 )
                then
-                  clickLastImg( 0.5 )
+                  clickLastImg( 1 )
                else
                   do_steal = false
                   waitTime = 0
-                  keyevent( 3 )
+                  keyevent( 4 )
 
                   if do_logging
                   then
@@ -192,7 +210,7 @@ do
                -- Couldn't find knob. Stop stealing and go back to return to main battle screen
                do_steal = false
                waitTime = 0
-               keyevent( 3 )     -- 'Back' key will close the Zidane skills menu
+               keyevent( 4 )     -- 'Back' key will close the Zidane skills menu
 
                if do_logging
                then
