@@ -5,7 +5,9 @@
 --    3) All friend units are filtered out by the current friend filter
 --    4) The user wants to use lapis refills
 --    5) The TM team can auto through the ES entrance units
---    6) (Toggleable in source) The user wants Zidane to do steal instead of attack
+--    6) The Ankulua start/stop button is on the top edge of the screen (no lower than 200 px in y;
+--       x dim doesn't matter)
+--    7) (Toggleable in source) The user wants Zidane to do steal instead of attack
 
 -- ======= Settings ===========
 -- Use 1536x2048 as comparison dimensions
@@ -37,10 +39,8 @@ then
    then
       io.output( logfile )
       io.write( os.date( "\n -- Starting script on %d %b %Y at %H:%M:%S\n" ) )
-      io.stdout:write( "Using ffbe_log.txt as logfile\n" )
    else
       do_logging = false
-      io.stdout:write( "Could not open logfile. No logging performed\n" )
    end
 end
 
@@ -215,7 +215,7 @@ do
                -- Click the steal ability
                if waitForImg( "steal.png", 1 )
                then
-                  clickLastImg( 2 )
+                  clickLastImg( 1 )
                else
                   waitTime = 0
                   keyevent( 4 )
@@ -314,7 +314,7 @@ do
    then
       local screen = getAppUsableScreenSize()
       local x = math.random( screen:getX() )
-      local y = math.random( screen:getY() )
+      local y = math.random( 200, screen:getY() )
       click( Location( x, y ) )
       waitTime = 3
 
@@ -327,7 +327,7 @@ do
    -- Wait for "Next" button (Results screen 3; materials)
    if running and waitForImg( "next.png", waitTime )
    then
-      clickLastImg( 0 )
+      clickLastImg( 0.25 )
    else
       running = false
       if do_logging
