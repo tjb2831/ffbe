@@ -200,7 +200,7 @@ do
             then
                local knob = getLastMatch()
                local screen = getAppUsableScreenSize()
-               x_start = knob:getX() + math.random( 9 ) + 2
+               x_start = knob:getX() + math.random( 9 ) + 10
                x_stop = x_start + ( math.random( 3 ) - 2 )
                y_start = knob:getY() + math.random( 20 )
                y_stop = screen:getY()
