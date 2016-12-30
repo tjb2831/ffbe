@@ -20,9 +20,10 @@ Settings:setScriptDimension(false, 2048)
 
 -- Settings used by app logic
 transition_jitter = true   -- Add some random delta to screen transitions
-do_steal = true
+do_steal = false
 use_lapis = true
-do_logging = true
+do_logging = false
+has_unstable_inet = true   -- Set to true to handle connection error popups
 logfile = nil
 
 -- Seed the PRNG if we're adding jitter to click pauses
@@ -46,17 +47,45 @@ end
 
 -- ======== Wait for given image to appear ==========
 function waitForImg( img, waitTime )
-   local jitter = 0
    local trials = 3
    local matched = nil
    while not matched and trials > 0
    do
-      if transition_jitter and waitTime > 0 then
-         jitter = math.random() * 2
-      end
       
-      matched = exists( img, waitTime + jitter )
+      matched = exists( img, waitTime )
+
+      -- Extra check for connectivity problems
+      if has_unstable_inet and not matched
+      then
+         matched = exists( "connection_error.png", 1 )
+         if matched
+         then
+            -- Click "OK" button.
+            -- Upper left XY = 370, 370 px
+            -- Width x Height = 380x100 px
+            local x = matched:getX() + math.random( 370, 370 + 380 )
+            local y = matched:getY() + math.random( 370, 370 + 100 )
+            click( Location( x, y ) )
+            
+            -- Reset loop counter and match
+            trials = 4
+            matched = nil
+            
+            if do_logging
+            then
+               io.write( "Connection error found. Dismissing dialog\n" )
+               io.write( string.format( "Click at (%d, %d)\n", x, y ) )
+            end
+         end
+      end
+
       trials = trials - 1
+   end
+
+   -- Add some random lag between clicks
+   if transition_jitter and matched and waitTime > 0 then
+      local jitter = math.random() * 1.5
+      wait( jitter )
    end
 
    if do_logging
@@ -330,9 +359,26 @@ do
       clickLastImg( 0.25 )
    else
       running = false
+      waitTime = 3
       if do_logging
       then
          io.write( "Unable to find Next button\n" )
+      end
+   end
+
+   -- Check for the Daily story missions reward screen
+   if running and waitForImg( "story_missions.png", waitTime )
+   then
+      -- "Close" button is at about XY = 125, 865 px
+      -- "Close" button width x height is about 300x80 px
+      local matched = getLastMatch()
+      local x = matched:getX() + math.random( 125, 125 + 300 )
+      local y = matched:getY() + math.random( 865, 865 + 80 )
+      click( Location( x, y ) )
+      if do_logging
+      then
+         io.write( "Closing daily quest dialog\n" )
+         io.write( string.format( "Click at (%d, %d)\n", x, y ) )
       end
    end
 
