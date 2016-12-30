@@ -3,10 +3,10 @@
 --    1) The script is started on the Earth Shrine stage select screen
 --    2) The TM team is the default team
 --    3) All friend units are filtered out by the current friend filter
---    4) The user wants to use lapis refills
---    5) The TM team can auto through the ES entrance units
---    6) The Ankulua start/stop button is on the top edge of the screen (no lower than 200 px in y;
+--    4) The TM team can auto through the ES entrance units
+--    5) The Ankulua start/stop button is on the top edge of the screen (no lower than 200 px in y;
 --       x dim doesn't matter)
+--    6) (Toggleable in source) The user wants to use lapis refills
 --    7) (Toggleable in source) The user wants Zidane to do steal instead of attack
 
 -- ======= Settings ===========
@@ -20,11 +20,13 @@ Settings:setScriptDimension(false, 2048)
 
 -- Settings used by app logic
 transition_jitter = true   -- Add some random delta to screen transitions
-do_steal = false
-use_lapis = true
-do_logging = false
+do_steal = false           -- Whether the user wants to use steal with Zidane
+steal_performed = false    -- True if the steal ability is actively being used
+use_lapis = true           -- Refill energy with lapis when we run out
+do_logging = false         -- Log click events to file
 has_unstable_inet = true   -- Set to true to handle connection error popups
-logfile = nil
+highlight_clicks = false    -- Highlight the click location for a few seconds (adds notable delay)
+logfile = nil              -- handle to log
 
 -- Seed the PRNG if we're adding jitter to click pauses
 if transition_jitter
@@ -43,6 +45,12 @@ then
    else
       do_logging = false
    end
+end
+
+-- Make highlights yellow and semi-translucent
+if highlight_clicks
+then
+   setHighlightStyle( 0x8fffff00, true )
 end
 
 -- ======== Wait for given image to appear ==========
@@ -65,7 +73,7 @@ function waitForImg( img, waitTime )
             -- Width x Height = 380x100 px
             local x = matched:getX() + math.random( 370, 370 + 380 )
             local y = matched:getY() + math.random( 370, 370 + 100 )
-            click( Location( x, y ) )
+            highlighted_click( x, y )
             
             -- Reset loop counter and match
             trials = 4
@@ -84,7 +92,7 @@ function waitForImg( img, waitTime )
 
    -- Add some random lag between clicks
    if transition_jitter and matched and waitTime > 0 then
-      local jitter = math.random() * 1.5
+      local jitter = math.random()
       wait( jitter )
    end
 
@@ -115,7 +123,7 @@ end
 -- ========= Click the last matched image at a random XY coord ========
 function clickLastImg( nextWait )
    local x, y = getRandomXY()
-   click( Location( x, y ) )
+   highlighted_click( x, y )
    waitTime = nextWait
 
    if do_logging
@@ -124,11 +132,29 @@ function clickLastImg( nextWait )
    end
 end
 
+-- ========== Specialized click method ===========
+function highlighted_click( x, y )
+   -- Highlight the 50x50 image, if desired
+   if highlight_clicks
+   then
+      local hl_region = Region( x - 25, y - 25, 50, 50 )
+      hl_region:highlight( 2 )
+   end
+
+   -- Click the actual point
+   local click_pt = Location( x, y )
+   click( click_pt )
+end
+
 -- ========== Main Program ==========
 running = true
+steal_performed = false
 waitTime = nil    -- How long to wait for next click
 while running
 do
+
+   -- Reset the flag indicating if the steal ability has been used or not
+   steal_performed = false
    
    -- Find the Earth Shrine entrance button (stage selection; NOT world map)
    waitTime = 3
@@ -245,6 +271,7 @@ do
                if waitForImg( "steal.png", 1 )
                then
                   clickLastImg( 1 )
+                  steal_performed = true
                else
                   waitTime = 0
                   keyevent( 4 )
@@ -282,9 +309,12 @@ do
       then
          local x1, y1 = getRandomXY()
          local x2, y2 = getRandomXY()
-         click( Location( x1, y1 ) )   -- Auto on
-         wait( 2 )
-         click( Location( x2, y2 ) )   -- Auto off
+         highlighted_click( x1, y1 )   -- Auto on
+         if steal_performed
+         then
+            wait( 2 )
+            highlighted_click( x2, y2 )   -- Auto off
+         end
          waitTime = 8
 
          if do_logging
@@ -311,17 +341,27 @@ do
    if running then wait( waitTime ) end
    waitTime = 0
 
-   -- Click 'Repeat' (in-battle, second round)
-   if running and waitForImg( "repeat.png", waitTime )
+   -- Click 'Repeat' if steal was performed, or just wait for round to end
+   -- (In-Battle screen, round 2)
+   if running
    then
-      clickLastImg( 20 )
-   else
-      running = false
-      if do_logging
+      if steal_performed
       then
-         io.write( "Unable to find Repeat button\n" )
+         if waitForImg( "repeat.png", waitTime )
+         then
+            clickLastImg( 20 )
+         else
+            running = false
+            if do_logging
+            then
+               io.write( "Unable to find Repeat button\n" )
+            end
+         end
+      else
+         waitTime = 20
       end
    end
+
 
    -- Wait for "Next" button (Results screen 1; exp, gil, rank)
    if running and waitForImg( "next.png", waitTime )
@@ -344,7 +384,7 @@ do
       local screen = getAppUsableScreenSize()
       local x = math.random( screen:getX() )
       local y = math.random( 200, screen:getY() )
-      click( Location( x, y ) )
+      highlighted_click( x, y )
       waitTime = 3
 
       if do_logging
@@ -374,7 +414,7 @@ do
       local matched = getLastMatch()
       local x = matched:getX() + math.random( 125, 125 + 300 )
       local y = matched:getY() + math.random( 865, 865 + 80 )
-      click( Location( x, y ) )
+      highlighted_click( x, y )
       if do_logging
       then
          io.write( "Closing daily quest dialog\n" )
