@@ -21,37 +21,14 @@ Settings:setScriptDimension(false, 2048)
 -- Settings used by app logic
 transition_jitter = true   -- Add some random delta to screen transitions
 do_steal = false           -- Whether the user wants to use steal with Zidane
+steal_char = "zidane"      -- Which character to steal with (currently unused)
 steal_performed = false    -- True if the steal ability is actively being used
 use_lapis = true           -- Refill energy with lapis when we run out
 do_logging = false         -- Log click events to file
 has_unstable_inet = true   -- Set to true to handle connection error popups
-highlight_clicks = false    -- Highlight the click location for a few seconds (adds notable delay)
+highlight_clicks = false   -- Highlight the click location for a few seconds (adds notable delay)
+highlight_duration = 2     -- Number of seconds to highlight clicks
 logfile = nil              -- handle to log
-
--- Seed the PRNG if we're adding jitter to click pauses
-if transition_jitter
-then
-   math.randomseed( os.time() )
-end
-
--- Open log file
-if do_logging
-then
-   logfile = io.open( "/sdcard/Ankulua/ffbe/ffbe_log.txt", "a" )
-   if logfile
-   then
-      io.output( logfile )
-      io.write( os.date( "\n -- Starting script on %d %b %Y at %H:%M:%S\n" ) )
-   else
-      do_logging = false
-   end
-end
-
--- Make highlights yellow and semi-translucent
-if highlight_clicks
-then
-   setHighlightStyle( 0x8fffff00, true )
-end
 
 -- ======== Wait for given image to appear ==========
 function waitForImg( img, waitTime )
@@ -146,13 +123,113 @@ function highlighted_click( x, y )
    click( click_pt )
 end
 
+-- ========== Show dialog for user preferences =========
+function getUserPrefs()
+   dialogInit()
+
+   -- Add random lag between button clicks (timing jitter)
+   addCheckBox( "transition_jitter", "Random button click delay", true )
+   newRow()
+
+   -- Perform steal actions in battle
+   addCheckBox( "do_steal", "Use steal in battle", false )
+   local steal_users = { "Zidane" }    -- Currently only support Zidane
+   newRow()
+   addTextView( "Character using steal: " )
+   addSpinner( "steal_char", steal_users, steal_users[0] )
+   newRow()
+
+   -- Use lapis when out of energy
+   addCheckBox( "use_lapis", "Use lapis to refill energy", true )
+   newRow()
+
+   -- Unstable internet check
+   addCheckBox( "has_unstable_inet", "Check for network disconnection", false )
+   newRow()
+
+   -- Highlight click locations
+   addCheckBox( "highlight_clicks", "Highlight click locations (delays script)", false )
+   newRow()
+   addTextView( "Click highlight duration (seconds): " )
+   addEditNumber( "highligh_duration", 2 )
+   newRow()
+
+   -- Log clicks
+   addCheckBox( "do_logging", "Log click locations", false )
+   newRow()
+   addTextView( "Logfile name: " )
+   addEditText( "logfile", "ffbe_log.txt" )
+   
+   -- Show the dialog
+   dialogShow( "Earth Shrine Farm Settings" )
+   
+end
+
+-- ========== Initialization ========
+function init()
+
+   -- Get user settings
+   getUserPrefs()
+
+   -- Seed the PRNG if we're adding jitter to click pauses
+   if transition_jitter
+   then
+      math.randomseed( os.time() )
+   end
+
+   -- Open log file
+   if do_logging
+   then
+      logfile = io.open( "/sdcard/Ankulua/ffbe/" .. logfile, "a" )
+      if logfile
+      then
+         io.output( logfile )
+         io.write( os.date( "\n -- Starting script on %d %b %Y at %H:%M:%S\n" ) )
+
+         io.write( string.format(
+                     "-- Settings:\n" ..
+                     "\tClick time jitter = %s\n" ..
+                     "\tPerform steal = %s\n" ..
+                     "\tSteal character = %s\n" ..
+                     "\tRefill energy with lapis = %s\n" ..
+                     "\tUnstable internet = %s\n" ..
+                     "\tHighlight clicks = %s\n" ..
+                     "\tHighlight duration = %.02f\n" ..
+                     "-- End Settings\n",
+                     ( transition_jitter and "true" or "false" ),
+                     ( do_steal and "true" or "false" ),
+                     ( do_steal and steal_char or "--" ),
+                     ( use_lapis and "true" or "false" ),
+                     ( has_unstable_inet and "true" or "false" ),
+                     ( highlight_clicks and "true" or "false" ),
+                     ( highlight_clicks and highlight_duration or "--" )
+                     )
+                  )
+
+      else
+         do_logging = false
+      end
+   end
+
+   -- Make highlights yellow and semi-translucent
+   if highlight_clicks
+   then
+      setHighlightStyle( 0x8fffff00, true )
+   end
+end
+
 -- ========== Main Program ==========
-steal_performed = false
+steal_performed = false    -- Internal flag for if a steal is actively being used
 waitTime = nil    -- How long to wait for next click
+
+-- Initialize with user prefs
+init()
+
+-- Main processing loop
 while true
 do
 
-   -- Reset the flag indicating if the steal ability has been used or not
+   -- Reset the steal flag 
    steal_performed = false
    
    -- Find the Earth Shrine entrance button (stage selection; NOT world map)
