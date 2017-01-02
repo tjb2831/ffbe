@@ -471,6 +471,14 @@ do
    if waitForImg( "next.png", waitTime )
    then
       clickLastImg( 3 )
+   elseif waitForImg( "rank_up.png", 1 )
+   then
+      -- Click anywhere on rank up, then wait a beat
+      local screen = getAppUsableScreenSize()
+      local x = math.random( screen:getX() )
+      local y = math.random( 200, screen:getY() )
+      highlighted_click( x, y )
+      waitTime = 3
    else
       if do_logging
       then
