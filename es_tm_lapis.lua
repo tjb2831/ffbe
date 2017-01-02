@@ -134,7 +134,7 @@ end
 
 -- ========== Specialized click method ===========
 function highlighted_click( x, y )
-   -- Highlight the 50x50 image, if desired
+   -- Highlight the 50x50 region around the click, if desired
    if highlight_clicks
    then
       local hl_region = Region( x - 25, y - 25, 50, 50 )
@@ -147,82 +147,109 @@ function highlighted_click( x, y )
 end
 
 -- ========== Main Program ==========
-running = true
 steal_performed = false
 waitTime = nil    -- How long to wait for next click
-while running
+while true
 do
 
    -- Reset the flag indicating if the steal ability has been used or not
    steal_performed = false
    
    -- Find the Earth Shrine entrance button (stage selection; NOT world map)
+   -- Wrap in a loop in case the story missions daily quest popup appears
    waitTime = 3
-   if waitForImg( "es_entrance.png", waitTime )
-   then
-      clickLastImg( 2 )
-   else
-      running = false
-      if do_logging
+   while true
+   do
+      if waitForImg( "es_entrance.png", waitTime )
       then
-         io.write( "Unable to find es_entrance button\n" )
-      end
-   end
-
-   -- Check for "No Energy" (refill popup)
-   if running and waitForImg( "refill_yes.png", waitTime )
-   then
-      if use_lapis
+         clickLastImg( 2 )
+         break
+      elseif waitForImg( "story_missions.png", 1 )
       then
-         clickLastImg( 4 )
-      else
-         running = false
+         -- "Close" button is at about XY = 125, 865 px
+         -- "Close" button width x height is about 300x80 px
+         local matched = getLastMatch()
+         local x = matched:getX() + math.random( 125, 125 + 300 )
+         local y = matched:getY() + math.random( 865, 865 + 80 )
+         highlighted_click( x, y )
          if do_logging
          then
-            io.write( "Out of energy and not using lapis. Quitting script.\n" )
+            io.write( "Closing daily quest dialog\n" )
+            io.write( string.format( "Click at (%d, %d)\n", x, y ) )
          end
+      else
+         if do_logging
+         then
+            io.write( "Unable to find es_entrance or daily quest dismissal button\n" )
+            io.flush()
+         end
+         scriptExit( "Unable to find es_entrance or daily quest dismissal button" )
       end
-      -- No 'else failure' here. We could just not need to refill energy
    end
 
+
    -- Check for "Next" button (mission screen)
-   if running and waitForImg( "next.png", waitTime )
-   then
-      clickLastImg( 4 )
-   else
-      running = false
-      if do_logging
+   -- Wrap in a loop in case the 'refill energy' dialog appears
+   while true
+   do
+      -- If the "Next" button is there, we have the energy to continue
+      if waitForImg( "next.png", waitTime )
       then
-         io.write( "Unable to find Next button\n" )
+         clickLastImg( 4 )
+         break
+      elseif waitForImg( "refill_yes.png", waitTime )
+      then
+         if use_lapis
+         then
+            clickLastImg( 4 )
+            break
+         else
+            if do_logging
+            then
+               io.write( "Out of energy and not using lapis. Quitting script.\n" )
+               io.flush()
+            end
+            scriptExit( "Out of energy" )
+         end
+      else
+         -- No "Next" button or "Refill" button
+         if do_logging
+         then
+            io.write( "Unable to find next or refill button\n" )
+            io.flush()
+         end
+         scriptExit( "Unable to find next or refill button" )
       end
    end
 
    -- Check for "Depart without companion" button (friend select screen)
-   if running and waitForImg( "depart_no_comp.png", waitTime )
+   if waitForImg( "depart_no_comp.png", waitTime )
    then
       clickLastImg( 2 )
    else
-      running = false
       if do_logging
       then
-         io.write( "Unable to find no companions button\n" )
+         io.write( "Unable to find the No Companions button\n" )
+         io.flush()
       end
+      scriptExit( "Unable to find the No Companions button" )
    end
 
    -- Check for "Depart" button (team selection screen)
-   if running and waitForImg( "depart.png", waitTime )
+   if waitForImg( "depart.png", waitTime )
    then
       clickLastImg( 7 )
    else
-      running = false
       if do_logging
       then
          io.write( "Unable to find Depart button\n" )
+         io.flush()
       end
+      scriptExit( "Unable to find the Depart button" )
    end
 
    -- Check for "Auto" button (in-battle screen)
-   if running and waitForImg( "auto.png", waitTime )
+   if waitForImg( "auto.png", waitTime )
    then
       if do_steal
       then
@@ -323,64 +350,64 @@ do
                x1, y1, x2, y2 ) )
          end
       else
-         running = false
          if do_logging
          then
             io.write( "Unable to find Auto button\n" )
+            io.flush()
          end
+         scriptExit( "Unable to find Auto button" )
       end
    else
-      running = false
       if do_logging
       then
          io.write( "Unable to find Auto button\n" )
+         io.flush()
       end
-   end   -- running and get 'auto.png'
+      scriptExit( "Unable to find Auto button" )
+   end   -- get 'auto.png'
 
    -- Wait for the second round
-   if running then wait( waitTime ) end
+   wait( waitTime )
    waitTime = 0
 
    -- Click 'Repeat' if steal was performed, or just wait for round to end
    -- (In-Battle screen, round 2)
-   if running
+   if steal_performed
    then
-      if steal_performed
+      if waitForImg( "repeat.png", waitTime )
       then
-         if waitForImg( "repeat.png", waitTime )
-         then
-            clickLastImg( 20 )
-         else
-            running = false
-            if do_logging
-            then
-               io.write( "Unable to find Repeat button\n" )
-            end
-         end
+         clickLastImg( 20 )
       else
-         waitTime = 20
+         if do_logging
+         then
+            io.write( "Unable to find Repeat button\n" )
+            io.flush()
+         end
+         exitScript( "Unable to find Repeat button" )
       end
+   else
+      waitTime = 20
    end
 
 
    -- Wait for "Next" button (Results screen 1; exp, gil, rank)
-   if running and waitForImg( "next.png", waitTime )
+   if waitForImg( "next.png", waitTime )
    then
       clickLastImg( 3 )
    else
-      running = false
-      if do_running
+      if do_logging
       then
          io.write( "Unable to find Next button\n" )
+         io.flush()
       end
+      exitScript( "Unable to find Next button" )
    end
 
    -- Wait for next screen (no button to wait for)
-   if running then wait( waitTime ) end
+   wait( waitTime )
 
    -- Click anywhere (Results screen 2; character exp, tm, lb)
-   if running
-   then
+   do
       local screen = getAppUsableScreenSize()
       local x = math.random( screen:getX() )
       local y = math.random( 200, screen:getY() )
@@ -394,32 +421,16 @@ do
    end
 
    -- Wait for "Next" button (Results screen 3; materials)
-   if running and waitForImg( "next.png", waitTime )
+   if waitForImg( "next.png", waitTime )
    then
       clickLastImg( 0.25 )
    else
-      running = false
-      waitTime = 3
       if do_logging
       then
          io.write( "Unable to find Next button\n" )
+         io.flush()
       end
-   end
-
-   -- Check for the Daily story missions reward screen
-   if running and waitForImg( "story_missions.png", waitTime )
-   then
-      -- "Close" button is at about XY = 125, 865 px
-      -- "Close" button width x height is about 300x80 px
-      local matched = getLastMatch()
-      local x = matched:getX() + math.random( 125, 125 + 300 )
-      local y = matched:getY() + math.random( 865, 865 + 80 )
-      highlighted_click( x, y )
-      if do_logging
-      then
-         io.write( "Closing daily quest dialog\n" )
-         io.write( string.format( "Click at (%d, %d)\n", x, y ) )
-      end
+      exitScript( "Unable to find Next button" )
    end
 
    if do_logging
@@ -430,4 +441,4 @@ do
 
    -- End of run. Wait time reset at top of loop
 
-end   -- while running
+end   -- while main processing loop
