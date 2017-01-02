@@ -157,7 +157,7 @@ do
    
    -- Find the Earth Shrine entrance button (stage selection; NOT world map)
    -- Wrap in a loop in case the story missions daily quest popup appears
-   waitTime = 3
+   waitTime = 4
    while true
    do
       if waitForImg( "es_entrance.png", waitTime )
@@ -383,7 +383,7 @@ do
             io.write( "Unable to find Repeat button\n" )
             io.flush()
          end
-         exitScript( "Unable to find Repeat button" )
+         scriptExit( "Unable to find Repeat button" )
       end
    else
       waitTime = 20
@@ -400,7 +400,7 @@ do
          io.write( "Unable to find Next button\n" )
          io.flush()
       end
-      exitScript( "Unable to find Next button" )
+      scriptExit( "Unable to find Next button" )
    end
 
    -- Wait for next screen (no button to wait for)
@@ -430,7 +430,7 @@ do
          io.write( "Unable to find Next button\n" )
          io.flush()
       end
-      exitScript( "Unable to find Next button" )
+      scriptExit( "Unable to find Next button" )
    end
 
    if do_logging
