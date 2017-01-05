@@ -279,7 +279,9 @@ do
          if use_lapis
          then
             clickLastImg( 4 )
-            -- Stay in the loop since we should transition to the mission screen
+            -- Stay in the loop since we should transition to the mission screen,
+            -- but do pause for a moment
+            wait( 2 )
          else
             if do_logging
             then
