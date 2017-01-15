@@ -1,15 +1,16 @@
 -- More advanced script to farm Earth Shrine - Entrance.
 -- This script attempts to do intelligent recovery in the event of failure,
--- such as a button not appearing due to lag
+-- such as a button not appearing due to lag or FFBE crashing
 --
 -- Assumptions:
 --    1) The script is started on the Earth Shrine stage select screen
 --    2) The TM team is the default team
 --    3) All friend units are filtered out by the current friend filter
 --    4) The TM team can auto through the ES entrance units
---    5) The Ankulua start/stop button is on the top edge of the screen (no lower than 200 px in y;
+--    5) Units are in the first and second slot (left column of battle screen,
+--       top and middle position in 2x3 grid of units)
+--    6) The Ankulua start/stop button is on the top edge of the screen (no lower than 200 px in y;
 --       x dim doesn't matter)
---    6) (Toggleable in source) The user wants to use lapis refills
 --
 -- Note:
 --    Steal scripting has been removed
@@ -33,11 +34,6 @@ highlight_clicks = false   -- Highlight the click location for a few seconds (ad
 highlight_duration = 1     -- Number of seconds to highlight clicks
 logfile = nil              -- handle to log
 numFailedMatches = 0       -- Number of consecutive failed matches
-
--- Global state variables (named here for verbosity)
-stageIdx = 1               -- Index of current stage
-isRelaunching = false      -- App is currently relaunching
-isRecovering = false       -- Recovering due to inconsistency between current stageIdx and what's on screen
 
 -- Normal stages.
 -- MUST be in the correct sequential order, as if nothing went wrong!
@@ -107,7 +103,7 @@ function getUserPrefs()
    addCheckBox( "highlight_clicks", "Highlight click locations (delays script)", false )
    newRow()
    addTextView( "Click highlight duration (seconds): " )
-   addEditNumber( "highligh_duration", 2 )
+   addEditNumber( "highligh_duration", 2.0 )
    newRow()
 
    -- Log clicks
@@ -176,7 +172,7 @@ function init()
 end
 
 -- ============ Click a random area in given region of interest =============
-function doClick( roi )
+function doClick( roi, bypassJitter )
    -- Calculate random click location inside ROI
    local x = roi:getX() + math.random( roi:getW() )
    local y = roi:getY() + math.random( roi:getH() )
@@ -189,32 +185,33 @@ function doClick( roi )
    end
 
    -- Add random time delay (up to 1 second), if enabled
-   if transition_jitter
+   if transition_jitter and not bypassJitter
    then
       wait( math.random() )
    end
+
+   log( "INFO", string.format( "Clicking at (%d, %d)", x, y ) )
 
    -- Click location on screen
    click( Location( x, y ) )
 end
 
 -- ============ Determine current stage based on what's on screen ===========
-function determineStage()
-   local checked = {}
-   local nextStageIdx = 1
-   if stageIdx ~= nil
-   then
-      nextStageIdx = stageIdx + 1
-      if nextStageIdx > numStages then nextStageIdx = 1 end
-   end
+function determineStage( stageIdx )
+   local nextStageIdx = stageIdx + 1
+   if nextStageIdx > numStages then nextStageIdx = 1 end
+
+   log( "INFO", "On " .. stages[stageIdx] .. ", checking for " .. stages[nextStageIdx] )
 
    -- Check that this stage is the expected next first (most likely scenario).
    -- If not, then check if we haven't transitioned from the last stage
    if matchStage( nextStageIdx, true )
    then
+      log( "INFO", "Successfully found next expected stage of " .. stages[nextStageIdx] )
       return nextStageIdx
    elseif matchStage( stageIdx )
    then
+      log( "INFO", "Previous transition failed. Staying on " .. stages[stageIdx] )
       return stageIdx
    end
 
@@ -224,13 +221,15 @@ function determineStage()
    -- Network disconnection
    if matchStage( DISCONNECTED_SCREEN )
    then
+      log( "INFO", "Found network disconnect prompt. Dismissing prompt" )
       handleReconnect()
-      return determineStage()
+      return determineStage( stageIdx )
    end
 
    -- Lapis Refill (only appears on stage 0 -> 1 transition)
-   if stageIdx == 0 and matchStage( ENERGY_REFILL_SCREEN )
+   if stageIdx == STAGE_SELECT_SCREEN and matchStage( ENERGY_REFILL_SCREEN )
    then
+      log( "INFO", "Found energy refill prompt" )
       handleRefillPrompt()
       if use_lapis
       then
@@ -239,34 +238,55 @@ function determineStage()
          log( "INFO", "Out of energy. Stopping script" )
          scriptExit( "Out of energy. Stopping script" )
       end
+   elseif nextStageIdx == RESULTS_SCREEN_1 and BOTTOM_HALF:exists( "rank_up.png" )
+   then
+      -- Need to dismiss some extra info when ranking up
+      log( "INFO", "Rank Up! Dismissing extra rank up info before continuing" )
+      doClick( MIDDLE_HALF )     -- Dismiss Rank Up notification
+      wait( 2 )
+      doClick( MIDDLE_HALF )     -- Dismiss 100 lapis gift
+      wait( 2 )
+      return RESULTS_SCREEN_1    -- Continue with first result screen as normal
    elseif matchStage( DAILY_STORY_COMP_SCREEN )
    then
+      log( "INFO", "Found daily story quest complete prompt. Dismissing prompt" )
       handleDailyQuestsDialog()
       return STAGE_SELECT_SCREEN
    elseif matchStage( APP_CRASHED )
    then
       -- FFBE crashed. Relaunch it and figure out where we are
+      log( "INFO", "FFBE crashed. Relaunching app" )
       relaunchFFBE()
-      return determineStage()
+      return determineStage( stageIdx )
    end
 
    -- No idea where we are. See if we can match the snapshot to a known screen
+   log( "INFO", "Unable to determine stage on current = " .. stages[stageIdx])
    for idx, _ in pairs( stages )
    do
-      if matchStage( idx ) then return idx end
+      if matchStage( idx )
+      then
+         log( "INFO", "Determined current stage to be " .. stages[idx] .. " from search" )
+         return idx
+      end
    end
 
    -- Couldn't match anything
+   log( "WARN", "Failed to match current stage against known stages" )
    numFailedMatches = numFailedMatches + 1
    if numFailedMatches == 3
    then
       log( "ERR", "Failed to determine stage on last stage = " .. stages[stageIdx] )
+      log( "ERR", "Saving final screenshot as 'unknown.png'" )
+      local screen = getRealScreenSize()
+      screen = Region( 0, 0, screen:getX(), screen:getY() )
+      screen:save( "unknown.png" )
       scriptExit( "Failed to determine stage on last stage = " .. stages[stageIdx] )
    end
 
    -- Don't know what stage we are on and we haven't hit 3 failed in a row.
    -- Try again.
-   return determineStage()
+   return determineStage( stageIdx )
 end
 
 -- ============ Check for the given stage (by index) =============
@@ -338,10 +358,16 @@ function handleStage( stageIdx )
       wait( 7 )
    elseif stageIdx == BATTLE_SCREEN
    then
-      doClick( BOTTOM_QUARTER:getLastMatch() )
-      wait( 10 )
-      doClick( MIDDLE_HALF )
-      wait( 10 )
+      -- Round 1, click first two units
+      doClick( Region( 60, 1190, 620, 125 ), true )
+      doClick( Region( 60, 1420, 620, 125 ), true )
+      wait( 13 )
+      
+      -- Round 2, click first two units
+      doClick( Region( 60, 1190, 620, 125 ), true )
+      doClick( Region( 60, 1420, 620, 125 ), true )
+      wait( 20 )
+
    elseif stageIdx == RESULTS_SCREEN_1
    then
       doClick( BOTTOM_QUARTER:getLastMatch() )
@@ -441,13 +467,14 @@ end
 init()
 
 -- Main Processing Loop
+stageIdx = RESULTS_SCREEN_3
 while true
 do
 
    numFailedMatches = 0
    
    -- Determine what stage we're in
-   stageIdx = determineStage()
+   stageIdx = determineStage( stageIdx )
 
    -- Handle the current stage
    handleStage( stageIdx )
