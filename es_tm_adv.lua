@@ -375,7 +375,7 @@ function handleStage( stageIdx )
    elseif stageIdx == RESULTS_SCREEN_2
    then
       doClick( MIDDLE_HALF )     -- Click anywhere, no button to hit
-      wait( 3 )
+      wait( 2 )
    elseif stageIdx == RESULTS_SCREEN_3
    then
       doClick( BOTTOM_QUARTER:getLastMatch() )
