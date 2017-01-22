@@ -16,15 +16,6 @@
 --    Steal scripting has been removed
 
 -- ======= Settings ===========
--- Use 1536x2048 as comparison dimensions
-HEIGHT = 2048
-WIDTH = 1536
-Settings:setCompareDimension(true, WIDTH)  -- True flag denotes width
-Settings:setCompareDimension(false, HEIGHT) -- False flag denotes height
-
--- Script (and images) use 1536x2048 as screen dims
-Settings:setScriptDimension(true, WIDTH)
-Settings:setScriptDimension(false, HEIGHT)
 
 -- Settings used by app logic
 transition_jitter = true   -- Add some random delta to screen transitions
@@ -32,6 +23,7 @@ use_lapis = true           -- Refill energy with lapis when we run out
 do_logging = false         -- Log click events to file
 highlight_clicks = false   -- Highlight the click location for a few seconds (adds notable delay)
 highlight_duration = 1     -- Number of seconds to highlight clicks
+use_pc_patterns = true 	   -- Hack: True to use pattern images captured from tablet, otherwise images are taken from PC screenshots
 logfile = nil              -- handle to log
 numFailedMatches = 0       -- Number of consecutive failed matches
 
@@ -51,7 +43,6 @@ ENERGY_REFILL_SCREEN = 1000
 DISCONNECTED_SCREEN = 1001
 DAILY_STORY_COMP_SCREEN = 1002
 APP_CRASHED = 1003
-
 
 -- String descriptions of normal stages (for end-of-script messages)
 stages = {
@@ -80,12 +71,14 @@ stages[ENERGY_REFILL_SCREEN] = "Energy Refill Prompt"
 stages[DISCONNECTED_SCREEN] = "Network Disconnected Prompt"
 stages[APP_CRASHED] = "FFBE Application Crashed"
 
--- Constant regions used to limit search areas (speedup search)
-NO_HEADER = Region( 0, 250, WIDTH, HEIGHT - 250 )
-TOP_HALF = Region( 0, 0, WIDTH, HEIGHT / 2 )
-MIDDLE_HALF = Region( 0, HEIGHT / 4, WIDTH, HEIGHT / 2 )
-BOTTOM_HALF = Region( 0, HEIGHT / 2, WIDTH, HEIGHT / 2 )
-BOTTOM_QUARTER = Region( 0, 3 * HEIGHT / 4, WIDTH, HEIGHT / 4 )
+-- ============ Create constant regions of interest used to limit search areas (speedup search) =============
+function createRegions( width, height )
+   NO_HEADER = Region( 0, 250, width, height - 250 )
+   TOP_HALF = Region( 0, 0, width, height / 2 )
+   MIDDLE_HALF = Region( 0, height / 4, width, height / 2 )
+   BOTTOM_HALF = Region( 0, height / 2, width, height / 2 )
+   BOTTOM_QUARTER = Region( 0, 3 * height / 4, width, height / 4 )
+end
 
 -- ========== Show dialog for user preferences =========
 function getUserPrefs()
@@ -97,6 +90,10 @@ function getUserPrefs()
 
    -- Use lapis when out of energy
    addCheckBox( "use_lapis", "Use lapis to refill energy", true )
+   newRow()
+   
+   -- Use PC images
+   addCheckBox( "use_pc_patterns", "Use images captured on PC", true )
    newRow()
 
    -- Highlight click locations
@@ -149,11 +146,13 @@ function init()
                      "-- Settings:\n" ..
                      "\tClick time jitter = %s\n" ..
                      "\tRefill energy with lapis = %s\n" ..
+                     "\tUse PC images = %s\n" ..
                      "\tHighlight clicks = %s\n" ..
                      "\tHighlight duration = %.02f\n" ..
                      "-- End Settings\n",
                      ( transition_jitter and "true" or "false" ),
                      ( use_lapis and "true" or "false" ),
+                     ( use_pc_patterns and "true" or "false" ),
                      ( highlight_clicks and "true" or "false" ),
                      ( highlight_clicks and highlight_duration or "0.0" )
                      )
@@ -169,6 +168,38 @@ function init()
    then
       setHighlightStyle( 0x8fffff00, true )
    end
+   
+   -- Set where images for pattern recognition live
+   local width = 0
+   local height = 0
+   if use_pc_patterns
+   then
+      setImagePath( scriptPath() .. "/image/pc/" )
+      width = 1080
+      height = 1920
+	  
+      UNIT_1_REGION = Region( 40, 1215, 480, 145 )
+      UNIT_2_REGION = Region( 40, 1420, 480, 145 )
+   else
+      setImagePath( scriptPath() .. "/image/tablet/" )
+      width = 1536
+      height = 2048
+	  
+      UNIT_1_REGION = Region( 40, 1170, 690, 180 )
+      UNIT_2_REGION = Region( 40, 1410, 690, 180 )
+   end
+   
+   Settings:setCompareDimension( true, width )
+   --Settings:setCompareDimension( false, height )
+   Settings:setScriptDimension( true, width )
+   --Settings:setScriptDimension( false, height )
+   createRegions( width, height )
+   
+   -- Some image introspection
+   Settings:snapSet( "OutputCaptureImg", true )
+   Settings:snapSet( "OutputCropImg", true )
+   Settings:snapSet( "OutputResizeImg", true )
+   Settings:snapSet( "OutputRegImg", true )
 end
 
 -- ============ Click a random area in given region of interest =============
@@ -299,7 +330,7 @@ function matchStage( stageIdx, newSnap )
       return BOTTOM_HALF:exists( "es_entrance.png" )
    elseif stageIdx == MISSION_SCREEN
    then
-      return BOTTOM_QUARTER:exists( "next.png" )
+      return BOTTOM_QUARTER:exists( "next_mission.png" )
    elseif stageIdx == COMPANION_SELECT_SCREEN
    then
       return TOP_HALF:exists( "depart_no_comp.png" )
@@ -311,13 +342,13 @@ function matchStage( stageIdx, newSnap )
       return BOTTOM_QUARTER:exists( "auto.png" )
    elseif stageIdx == RESULTS_SCREEN_1
    then
-      return BOTTOM_QUARTER:exists( "next.png" )
+      return BOTTOM_QUARTER:exists( "next_res1.png" )
    elseif stageIdx == RESULTS_SCREEN_2
    then
-      return TOP_HALF:exists( "results.png" ) and not BOTTOM_HALF:exists( "next.png" )
+      return TOP_HALF:exists( "unit_exp_0.png" )
    elseif stageIdx == RESULTS_SCREEN_3
    then
-      return BOTTOM_QUARTER:exists( "next.png" )
+      return BOTTOM_QUARTER:exists( "next_res3.png", 5 )
    elseif stageIdx == ENERGY_REFILL_SCREEN
    then
       return MIDDLE_HALF:exists( "refill_prompt.png" )
@@ -359,13 +390,13 @@ function handleStage( stageIdx )
    elseif stageIdx == BATTLE_SCREEN
    then
       -- Round 1, click first two units
-      doClick( Region( 60, 1190, 620, 125 ), true )
-      doClick( Region( 60, 1420, 620, 125 ), true )
+      doClick( UNIT_1_REGION, true )
+      doClick( UNIT_2_REGION, true )
       wait( 13 )
       
       -- Round 2, click first two units
-      doClick( Region( 60, 1190, 620, 125 ), true )
-      doClick( Region( 60, 1420, 620, 125 ), true )
+      doClick( UNIT_1_REGION, true )
+      doClick( UNIT_2_REGION, true )
       wait( 20 )
 
    elseif stageIdx == RESULTS_SCREEN_1
@@ -375,7 +406,7 @@ function handleStage( stageIdx )
    elseif stageIdx == RESULTS_SCREEN_2
    then
       doClick( MIDDLE_HALF )     -- Click anywhere, no button to hit
-      wait( 2 )
+      wait( 3 )
    elseif stageIdx == RESULTS_SCREEN_3
    then
       doClick( BOTTOM_QUARTER:getLastMatch() )
@@ -478,5 +509,12 @@ do
 
    -- Handle the current stage
    handleStage( stageIdx )
-
+  
 end
+--testStage = RESULTS_SCREEN_3
+--if matchStage( testStage, true ) then
+--	scriptExit("Found indicator of " .. stages[testStage] )
+	--handleStage( testStage )
+--else
+--	scriptExit( "Couldnt find " .. stages[testStage] )
+--end
