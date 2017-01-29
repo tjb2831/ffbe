@@ -70,6 +70,7 @@ end
 stages[ENERGY_REFILL_SCREEN] = "Energy Refill Prompt"
 stages[DISCONNECTED_SCREEN] = "Network Disconnected Prompt"
 stages[APP_CRASHED] = "FFBE Application Crashed"
+stages[DAILY_STORY_COMP_SCREEN] = "Daily Story Missions Complete Prompt"
 
 -- ============ Create constant regions of interest used to limit search areas (speedup search) =============
 function createRegions( width, height )
@@ -190,9 +191,9 @@ function init()
    end
    
    Settings:setCompareDimension( true, width )
-   --Settings:setCompareDimension( false, height )
+   Settings:setCompareDimension( false, height )
    Settings:setScriptDimension( true, width )
-   --Settings:setScriptDimension( false, height )
+   Settings:setScriptDimension( false, height )
    createRegions( width, height )
    
    -- Some image introspection
@@ -228,6 +229,7 @@ function doClick( roi, bypassJitter )
 end
 
 -- ============ Determine current stage based on what's on screen ===========
+-- @param stageIdx	The last known stage
 function determineStage( stageIdx )
    local nextStageIdx = stageIdx + 1
    if nextStageIdx > numStages then nextStageIdx = 1 end
@@ -247,7 +249,7 @@ function determineStage( stageIdx )
    end
 
    -- Didn't find what was expected in normal flow. Check for special stages before
-   -- searching (transitioning to recovery mode)
+   -- searching (ie., transitioning to recovery mode)
    
    -- Network disconnection
    if matchStage( DISCONNECTED_SCREEN )
@@ -264,7 +266,7 @@ function determineStage( stageIdx )
       handleRefillPrompt()
       if use_lapis
       then
-         return MISSION_SCREEN
+         return determineStage( stageIdx )
       else
          log( "INFO", "Out of energy. Stopping script" )
          scriptExit( "Out of energy. Stopping script" )
@@ -277,12 +279,12 @@ function determineStage( stageIdx )
       wait( 2 )
       doClick( MIDDLE_HALF )     -- Dismiss 100 lapis gift
       wait( 2 )
-      return RESULTS_SCREEN_1    -- Continue with first result screen as normal
-   elseif matchStage( DAILY_STORY_COMP_SCREEN )
+      return determineStage( stageIdx ) -- Continue with first result screen as normal
+   elseif stageIdx == RESULTS_SCREEN_3 and matchStage( DAILY_STORY_COMP_SCREEN )
    then
       log( "INFO", "Found daily story quest complete prompt. Dismissing prompt" )
       handleDailyQuestsDialog()
-      return STAGE_SELECT_SCREEN
+      return determineStage( stageIdx )
    elseif matchStage( APP_CRASHED )
    then
       -- FFBE crashed. Relaunch it and figure out where we are
@@ -511,7 +513,7 @@ do
    handleStage( stageIdx )
   
 end
---testStage = RESULTS_SCREEN_3
+--testStage = DAILY_STORY_COMP_SCREEN
 --if matchStage( testStage, true ) then
 --	scriptExit("Found indicator of " .. stages[testStage] )
 	--handleStage( testStage )
