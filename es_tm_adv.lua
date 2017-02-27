@@ -26,6 +26,8 @@ highlight_duration = 1     -- Number of seconds to highlight clicks
 use_pc_patterns = true 	   -- Hack: True to use pattern images captured from tablet, otherwise images are taken from PC screenshots
 logfile = nil              -- handle to log
 numFailedMatches = 0       -- Number of consecutive failed matches
+numExceptions = 0          -- Number of consecutive exceptions (usually socket timeout between script and Ankulua daemon)
+EXCEPTION_THRESHOLD = 10   -- Number of consecutive exceptions before leaving the script
 
 -- Normal stages.
 -- MUST be in the correct sequential order, as if nothing went wrong!
@@ -43,6 +45,7 @@ ENERGY_REFILL_SCREEN = 1000
 DISCONNECTED_SCREEN = 1001
 DAILY_STORY_COMP_SCREEN = 1002
 APP_CRASHED = 1003
+LAPIS_CONFIRM_SCREEN = 1004      -- New for FFBE v2.0
 
 -- String descriptions of normal stages (for end-of-script messages)
 stages = {
@@ -68,6 +71,7 @@ end
 --
 -- MUST BE AFTER THE NUM STAGES COUNTING LOOP
 stages[ENERGY_REFILL_SCREEN] = "Energy Refill Prompt"
+stages[LAPIS_CONFIRM_SCREEN] = "Energy Refill Lapis Usage Confirm Screen"
 stages[DISCONNECTED_SCREEN] = "Network Disconnected Prompt"
 stages[APP_CRASHED] = "FFBE Application Crashed"
 stages[DAILY_STORY_COMP_SCREEN] = "Daily Story Missions Complete Prompt"
@@ -354,6 +358,9 @@ function matchStage( stageIdx, newSnap )
    elseif stageIdx == ENERGY_REFILL_SCREEN
    then
       return MIDDLE_HALF:exists( "refill_prompt.png" )
+   elseif stageIdx == LAPIS_CONFIRM_SCREEN
+   then
+      return MIDDLE_HALF:exists( "refill_confirm.png" )
    elseif stageIdx == DISCONNECTED_SCREEN
    then
       return MIDDLE_HALF:exists( "connection_error.png" )
@@ -419,18 +426,21 @@ end
 -- ============ Generic Dialog Handler =========
 function handleDialog( clickPattern, matchPattern )
    local clicked = false
-   while not clicked
+   local attempts = 0
+   while not clicked and attempts < 10
    do
       local prompt = MIDDLE_HALF:getLastMatch()
       local roi = prompt:exists( clickPattern )
       if roi == nil
       then
          -- expected button wasn't in the last match. Try again with a new snapshot
-         log( "ERR", "Unable to find " .. clickPattern .. " in dialog. " ..
-              "Trying again with new snapshot" )
+         log( "ERR", string.format( 
+            "Unable to find %s in dialog. Trying again with new snapshot (attempt number %d)",
+            clickPattern, attempts ) )
          
          usePreviousSnap( false )
          MIDDLE_HALF:exists( matchPattern )
+         attempts = attempts + 1
       else
          doClick( roi )
          clicked = true
@@ -451,7 +461,13 @@ function handleRefillPrompt()
    then
       keyevent( 4 )     -- Hit back button to dismiss dialog
    else
-      handleDialog( "refill_yes.png", "refill_prompt.png" )
+      -- FFBE v2.0 update: The refill is now a two dialog processing
+      --    1) Prompt 1 - Select to use Lapis to refill
+      --    2) Prompt 2 - Confirm to use Lapis (original dialog from FFBE 1.x)
+      handleDialog( "lapis_refill.png", "refill_prompt.png" )
+      wait( 2 )
+      matchStage( LAPIS_CONFIRM_SCREEN, true )
+      handleDialog( "refill_yes.png", "refill_confirm.png" )
       wait( 2 )
    end
    
@@ -500,18 +516,49 @@ end
 init()
 
 -- Main Processing Loop
+-- Top level loop is to capture any exceptions. This usually happens when
+-- the script has a socket timeout with the Ankulua daemon. The script will
+-- exit if enough exceptions occur without a successful script iteration
 stageIdx = RESULTS_SCREEN_3
 while true
 do
-
-   numFailedMatches = 0
-   
-   -- Determine what stage we're in
-   stageIdx = determineStage( stageIdx )
-
-   -- Handle the current stage
-   handleStage( stageIdx )
   
+   -- Inner loop. Performs the actual logic of the script. It
+   -- will determine which stage we're on, handle the action of that
+   -- stage, and update the internal tracking variables.
+   -- Wrap in a pcall(..) statement to gracefully handle an exception.
+   _, err = pcall(
+      function() 
+         while true
+         do
+   
+            -- Determine what stage we're in
+            stageIdx = determineStage( stageIdx )
+
+            -- Handle the current stage
+            handleStage( stageIdx )
+            
+            -- Reset error counters
+            -- Reset at end of loop so numExceptions isn't overwritten prematurely
+            numFailedMatches = 0
+            numExceptions = 0
+         end
+      end
+   )
+   
+   -- Since we've left the processing loop, an error must have occurred.
+   numExceptions = numExceptions + 1
+   log( "ERROR", string.format( "Exception occurred. Num consective exceptions = %d", numExceptions ) )
+   log( "ERROR", "Exception = \n" .. err )
+   if numExceptions == EXCEPTION_THRESHOLD
+   then
+      log( "ERROR", "Hit exception threshold. Exiting script." )
+      scriptExit( "Hit exception limit" )
+   end
+   
+   -- Slight pause before trying again, so if it is a network/daemon issue
+   -- it has time to sort itself out before the script errors out
+   wait( 5 )
 end
 --testStage = DAILY_STORY_COMP_SCREEN
 --if matchStage( testStage, true ) then
