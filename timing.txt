@@ -1,3 +1,6 @@
+======================================================
+Nominal Earth Shrine Flow
+======================================================
 Click on "Earth Shrine - Entrance"
 Wait ~2 seconds   <-- Wait for "Next" to appear
 Check for "No Energy"
@@ -28,3 +31,25 @@ Wait ~3 seconds   <-- Wait for "Next" to appear
 Click "Next"
 Wait ~3 seconds   <-- Wait for "Earth Shrine -- Entrance" to appear
 Repeat
+
+
+
+===========================================================
+'New Data' Flow During Daily Reset
+===========================================================
+New Data prompt appears
+Hit 'Back' hotkey (or press OK button)
+Wait ~30 seconds	<-- Wait for login screen, timing may vary
+Click anywhere
+Wait ~30 seconds	<-- Wait for Daily login reward popup, timing may vary (at least 20 seconds needed)
+Hit 'Back' hotkey
+Wait ~5 seconds		<-- Wait for reward dialog to go away, now on main screen
+Click 'World' icon
+Wait ~3 seconds		<-- Wait for continent select screen
+Click 'Grandshelt' button
+Wait ~3 seconds		<-- Wait for Grandshelt Isles screen
+Click 'Grandshelt Isles'
+Wait ~3 seconds		<-- Wait for 'Ordol Port' to appear
+Drag from X = <middle>, Y = match + 100px to right edge of screen
+Click 'Earth Shrine' icon
+Continue normal ES farm script (ie., determineStage)

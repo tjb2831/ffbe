@@ -27,7 +27,7 @@ use_pc_patterns = true 	   -- Hack: True to use pattern images captured from tab
 logfile = nil              -- handle to log
 numFailedMatches = 0       -- Number of consecutive failed matches
 numExceptions = 0          -- Number of consecutive exceptions (usually socket timeout between script and Ankulua daemon)
-EXCEPTION_THRESHOLD = 10   -- Number of consecutive exceptions before leaving the script
+EXCEPTION_THRESHOLD = 25   -- Number of consecutive exceptions before leaving the script
 
 -- Normal stages.
 -- MUST be in the correct sequential order, as if nothing went wrong!
@@ -301,11 +301,13 @@ function determineStage( stageIdx )
    log( "INFO", "Unable to determine stage on current = " .. stages[stageIdx])
    for idx, _ in pairs( stages )
    do
+      log( "DEBUG", "Checking screenshot against " .. stages[idx] )
       if matchStage( idx )
       then
          log( "INFO", "Determined current stage to be " .. stages[idx] .. " from search" )
          return idx
       end
+      log( "DEBUG", "Match Failed" )
    end
 
    -- Couldn't match anything
@@ -548,7 +550,7 @@ do
    
    -- Since we've left the processing loop, an error must have occurred.
    numExceptions = numExceptions + 1
-   log( "ERROR", string.format( "Exception occurred. Num consective exceptions = %d", numExceptions ) )
+   log( "ERROR", string.format( "Exception occurred. Num consecutive exceptions = %d", numExceptions ) )
    log( "ERROR", "Exception = \n" .. err )
    if numExceptions == EXCEPTION_THRESHOLD
    then
@@ -558,7 +560,33 @@ do
    
    -- Slight pause before trying again, so if it is a network/daemon issue
    -- it has time to sort itself out before the script errors out
+   
+   -- Do a repeat a 1 second wait 5 times to verify the wait duration is fine
+   log( "DEBUG", "Start 5 second wait loop" )
+   for i = 1,5
+   do
+      wait( 1 )
+      log( "DEBUG", "1 second wait" )
+   end
+   log( "DEBUG", "End 5 second wait loop" )
+   --[[
    wait( 5 )
+   pcall ( function()
+      -- Quick and dirty function to simulate 5 second wait
+      -- The 'wait(5)' call does not seem to be reliable (spurious wakeups?)
+      -- This is a hot sleep, but it is what it is
+      local endTime = os.time() + 5
+      local now = os.time()
+      log("INFO", string.format( "Time now = %d, Time stop = %d", now, endTime ) )
+      while now < endTime
+      do
+         log("INFO", string.format( "Time now = %d, Time stop = %d", now, endTime ) )
+         wait( 5 )   -- This does cause some time to lapse, but not a whole 5 seconds
+         now = os.time()
+      end
+   end
+   )
+   --]]
 end
 --testStage = DAILY_STORY_COMP_SCREEN
 --if matchStage( testStage, true ) then
