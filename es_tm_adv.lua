@@ -46,6 +46,8 @@ DISCONNECTED_SCREEN = 1001
 DAILY_STORY_COMP_SCREEN = 1002
 APP_CRASHED = 1003
 LAPIS_CONFIRM_SCREEN = 1004      -- New for FFBE v2.0
+SPLASH_SCREEN = 1005
+RESUME_MISSION = 1006      -- Added sometime after v2.0 update, appears when resuming after crash
 
 -- String descriptions of normal stages (for end-of-script messages)
 stages = {
@@ -75,6 +77,8 @@ stages[LAPIS_CONFIRM_SCREEN] = "Energy Refill Lapis Usage Confirm Screen"
 stages[DISCONNECTED_SCREEN] = "Network Disconnected Prompt"
 stages[APP_CRASHED] = "FFBE Application Crashed"
 stages[DAILY_STORY_COMP_SCREEN] = "Daily Story Missions Complete Prompt"
+stages[SPLASH_SCREEN] = "Application Splash Screen"
+stages[RESUME_MISSION] = "Resume Previous Mission Prompt"
 
 -- ============ Create constant regions of interest used to limit search areas (speedup search) =============
 function createRegions( width, height )
@@ -294,6 +298,20 @@ function determineStage( stageIdx )
       -- FFBE crashed. Relaunch it and figure out where we are
       log( "INFO", "FFBE crashed. Relaunching app" )
       relaunchFFBE()
+      handleSplashScreen()
+      return determineStage( stageIdx )
+   elseif matchStage( SPLASH_SCREEN )
+   then
+      -- FFBE crashed and the splash screen took too long to come up.
+      -- Just click somewhere in the middle of the screen and wait
+      log( "INFO", "Stuck on FFBE splash screen. Continuing." )
+      handleSplashScreen()
+      return determineStage( stageIdx )
+   elseif matchStage( RESUME_MISSION )
+      -- Prompt after a crash asking whether we want to resume the last mission (yes, we do)
+      log( "INFO", "Found resume mission prompt" )
+      handleDialog( "resume_yes.png", "resume_mission.png" )
+      wait( 8 )   -- Not based on any measurement...
       return determineStage( stageIdx )
    end
 
@@ -373,6 +391,12 @@ function matchStage( stageIdx, newSnap )
    then
       -- Assuming FFBE icon is on bottom half of home screen
       return BOTTOM_HALF:exists( "ffbe_icon_text.png" )
+   elseif stageIdx == SPLASH_SCREEN
+   then
+      return BOTTOM_HALF:exists( "splash_buttons.png" )
+   elseif stageIdx == RESUME_MISSION
+   then
+      return MIDDLE_HALF:exists( "resume_mission.png" )
    end
 
    -- Invalid stage index
@@ -490,8 +514,12 @@ function relaunchFFBE()
 
    -- Wait for FFBE boot up sequence (splash screens)
    wait( 20 )
+   
+end
 
-   -- Handle network failure
+-- ============ Handle the splash screen ===========
+function handleSplashScreen()
+   -- Handle network failure prompts
    local pastNetworkPrompt = false
    while not pastNetworkPrompt
    do
