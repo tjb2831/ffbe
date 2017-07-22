@@ -308,6 +308,7 @@ function determineStage( stageIdx )
       handleSplashScreen()
       return determineStage( stageIdx )
    elseif matchStage( RESUME_MISSION )
+   then
       -- Prompt after a crash asking whether we want to resume the last mission (yes, we do)
       log( "INFO", "Found resume mission prompt" )
       handleDialog( "resume_yes.png", "resume_mission.png" )
