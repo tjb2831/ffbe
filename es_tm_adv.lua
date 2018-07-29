@@ -48,6 +48,7 @@ APP_CRASHED = 1003
 LAPIS_CONFIRM_SCREEN = 1004      -- New for FFBE v2.0
 SPLASH_SCREEN = 1005
 RESUME_MISSION = 1006      -- Added sometime after v2.0 update, appears when resuming after crash
+DISCONNECTED_SCREEN_ALT = 1007   -- Added sometime after the v2.3.1 update. Network disconnect prompt with less text
 
 -- String descriptions of normal stages (for end-of-script messages)
 stages = {
@@ -75,6 +76,7 @@ end
 stages[ENERGY_REFILL_SCREEN] = "Energy Refill Prompt"
 stages[LAPIS_CONFIRM_SCREEN] = "Energy Refill Lapis Usage Confirm Screen"
 stages[DISCONNECTED_SCREEN] = "Network Disconnected Prompt"
+stages[DISCONNECTED_SCREEN_ALT] = "Network Disconnected Prompt (Alt)"
 stages[APP_CRASHED] = "FFBE Application Crashed"
 stages[DAILY_STORY_COMP_SCREEN] = "Daily Story Missions Complete Prompt"
 stages[SPLASH_SCREEN] = "Application Splash Screen"
@@ -263,7 +265,12 @@ function determineStage( stageIdx )
    if matchStage( DISCONNECTED_SCREEN )
    then
       log( "INFO", "Found network disconnect prompt. Dismissing prompt" )
-      handleReconnect()
+      handleReconnect( DISCONNECTED_SCREEN )
+      return determineStage( stageIdx )
+   elseif matchStage( DISCONNECTED_SCREEN_ALT )
+   then
+      log( "INFO", "Found network disconnect (alt) prompt. Dismissing prompt" )
+      handleReconnect( DISCONNECTED_SCREEN_ALT )
       return determineStage( stageIdx )
    end
 
@@ -312,7 +319,7 @@ function determineStage( stageIdx )
       -- Prompt after a crash asking whether we want to resume the last mission (yes, we do)
       log( "INFO", "Found resume mission prompt" )
       handleDialog( "resume_yes.png", "resume_mission.png" )
-      wait( 8 )   -- Not based on any measurement...
+      wait( 15 )   -- Not based on any measurement...
       return determineStage( stageIdx )
    end
 
@@ -385,6 +392,9 @@ function matchStage( stageIdx, newSnap )
    elseif stageIdx == DISCONNECTED_SCREEN
    then
       return MIDDLE_HALF:exists( "connection_error.png" )
+   elseif stageIdx == DISCONNECTED_SCREEN_ALT
+   then
+      return MIDDLE_HALF:exists( "connection_error_alt.png" )
    elseif stageIdx == DAILY_STORY_COMP_SCREEN
    then
       return MIDDLE_HALF:exists( "story_missions.png" )
@@ -476,8 +486,13 @@ function handleDialog( clickPattern, matchPattern )
 end
 
 -- ============ Handle Network Disconnect Dialog ===========
-function handleReconnect()
-   handleDialog( "ok.png", "connection_error.png" )
+function handleReconnect( promptType )
+   if promptType == DISCONNECTED_SCREEN
+   then
+      handleDialog( "ok.png", "connection_error.png" )
+   else
+      handleDialog( "ok.png", "connection_error_alt.png" )
+   end
    wait( 2 )
    log( "INFO", "Dismissed network disconnection dialog" )
 end
