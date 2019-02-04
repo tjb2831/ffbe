@@ -47,19 +47,20 @@ DAILY_STORY_COMP_SCREEN = 1002
 APP_CRASHED = 1003
 LAPIS_CONFIRM_SCREEN = 1004      -- New for FFBE v2.0
 SPLASH_SCREEN = 1005
-RESUME_MISSION = 1006      -- Added sometime after v2.0 update, appears when resuming after crash
+RESUME_MISSION = 1006            -- Added sometime after v2.0 update, appears when resuming after crash
 DISCONNECTED_SCREEN_ALT = 1007   -- Added sometime after the v2.3.1 update. Network disconnect prompt with less text
+ADDL_DATA_DOWNLAD = 1008         -- Added in 3.4.1 update. Now prompts if there is data to download (happens on startup after crash)
 
 -- String descriptions of normal stages (for end-of-script messages)
 stages = {
-   [STAGE_SELECT_SCREEN] = "Stage Select",       -- Select ES entrance stage
-   [MISSION_SCREEN] = "Mission Screen",     -- Select "Next" on missions screen
-   [COMPANION_SELECT_SCREEN] = "Companion Screen",   -- Select "Depart without companions" on companion select screen
-   [TEAM_SELECT_SCREEN] = "Team Screen",        -- Select "Depart" on team selection screen
-   [BATTLE_SCREEN] = "Battle Screen",      -- Select "Auto" on battle screen
-   [RESULTS_SCREEN_1] = "Results Screen 1",   -- Select "Next" on first results screen (Total Exp, gil, rank exp)
-   [RESULTS_SCREEN_2] = "Results Screen 2",   -- Click anywhere on second results screen (Unit growth)
-   [RESULTS_SCREEN_3] = "Results Screen 3",   -- Select "Next" on third results screen (Materials)
+   [STAGE_SELECT_SCREEN] = "Stage Select",            -- Select ES entrance stage
+   [MISSION_SCREEN] = "Mission Screen",               -- Select "Next" on missions screen
+   [COMPANION_SELECT_SCREEN] = "Companion Screen",    -- Select "Depart without companions" on companion select screen
+   [TEAM_SELECT_SCREEN] = "Team Screen",              -- Select "Depart" on team selection screen
+   [BATTLE_SCREEN] = "Battle Screen",                 -- Select "Auto" on battle screen
+   [RESULTS_SCREEN_1] = "Results Screen 1",           -- Select "Next" on first results screen (Total Exp, gil, rank exp)
+   [RESULTS_SCREEN_2] = "Results Screen 2",           -- Click anywhere on second results screen (Unit growth)
+   [RESULTS_SCREEN_3] = "Results Screen 3",           -- Select "Next" on third results screen (Materials)
 }
 
 -- Stages are not added at runtime, so cache the number of stages
@@ -81,6 +82,7 @@ stages[APP_CRASHED] = "FFBE Application Crashed"
 stages[DAILY_STORY_COMP_SCREEN] = "Daily Story Missions Complete Prompt"
 stages[SPLASH_SCREEN] = "Application Splash Screen"
 stages[RESUME_MISSION] = "Resume Previous Mission Prompt"
+stages[ADDL_DATA_DOWNLAD] = "Additional Data Download Prompt"
 
 -- ============ Create constant regions of interest used to limit search areas (speedup search) =============
 function createRegions( width, height )
@@ -321,6 +323,13 @@ function determineStage( stageIdx )
       handleDialog( "resume_yes.png", "resume_mission.png" )
       wait( 15 )   -- Not based on any measurement...
       return determineStage( stageIdx )
+   elseif matchStage( ADDL_DATA_DOWNLAD )
+   then
+      -- Additional download prompt (typically happens when restarting app)
+      log( "INFO", "Found additional data download prompt" )
+      handleDialog( "addl_data_accept.png", "addl_data.png" )
+      wait( 8 )    -- Not based on any measurement...
+      return determineStage( stageIdx )
    end
 
    -- No idea where we are. See if we can match the snapshot to a known screen
@@ -408,6 +417,9 @@ function matchStage( stageIdx, newSnap )
    elseif stageIdx == RESUME_MISSION
    then
       return MIDDLE_HALF:exists( "resume_mission.png" )
+   elseif stageIdx == ADDL_DATA_DOWNLAD
+   then
+      return MIDDLE_HALF:exists( "addl_data.png" )
    end
 
    -- Invalid stage index
@@ -613,29 +625,4 @@ do
       log( "DEBUG", "1 second wait" )
    end
    log( "DEBUG", "End 5 second wait loop" )
-   --[[
-   wait( 5 )
-   pcall ( function()
-      -- Quick and dirty function to simulate 5 second wait
-      -- The 'wait(5)' call does not seem to be reliable (spurious wakeups?)
-      -- This is a hot sleep, but it is what it is
-      local endTime = os.time() + 5
-      local now = os.time()
-      log("INFO", string.format( "Time now = %d, Time stop = %d", now, endTime ) )
-      while now < endTime
-      do
-         log("INFO", string.format( "Time now = %d, Time stop = %d", now, endTime ) )
-         wait( 5 )   -- This does cause some time to lapse, but not a whole 5 seconds
-         now = os.time()
-      end
-   end
-   )
-   --]]
 end
---testStage = DAILY_STORY_COMP_SCREEN
---if matchStage( testStage, true ) then
---	scriptExit("Found indicator of " .. stages[testStage] )
-	--handleStage( testStage )
---else
---	scriptExit( "Couldnt find " .. stages[testStage] )
---end
